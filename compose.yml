@@ -18,14 +18,15 @@ services:
       - default
 
   nginx:
-    container_name: nginx
+    container_name: nginx-app
     command: nginx -g "daemon off;"
     image: nginx:latest
     ports:
-      - "8080:80"
+      - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - images:/images
+      - ./app/static:/etc/nginx/html
       - ./favicon.ico:/images/favicon.ico
     networks:
       - default

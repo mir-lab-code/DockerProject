@@ -1,9 +1,10 @@
-import cgi
 import json
 import uuid
-import os
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler, SimpleHTTPRequestHandler
 from loguru import logger
+
+from os import listdir
+from os.path import isfile, join
 
 SERVER_ADDRESS = ('0.0.0.0', 8000)
 ALLOWED_EXTENSIONS = ('jpg', 'jpeg', 'png', 'gif')
@@ -14,37 +15,50 @@ logger.add('logs/app.log', format="[{time:YYYY-DD-MM HH:mm:ss}] | {level} | {mes
 class ImageHostingHandler(BaseHTTPRequestHandler):
     server_version = 'Image Hosting Server/0.1'
 
-    def __init__(self, request, client_address, server):
-        super().__init__(request, client_address, server)
-        self.routes = {
-            '/': self.route_get_index(),
-            '/index.html': self.route_get_index(),
-            '/upload': self.route_post_upload()
+    routes = {
+            '/': 'get_index()',
+            '/index.html': 'get_index()',
+            '/upload': 'post_upload()',
+            '/images': 'get_images()'
         }
+
+    def end_headers(self):
+        self.send_header('Access-Control-Allow-Origin', '*')
+        SimpleHTTPRequestHandler.end_headers(self)
 
     def do_GET(self):
         if self.path in self.routes:
-            self.routes[self.path]()
+            exec(f'self.{self.routes[self.path]}')
         else:
             logger.warning(f'GET 404 {self.path}')
             self.send_response(404, 'Not found')
 
-    def route_get_index(self):
+    def get_index(self):
         logger.info(f'GET {self.path}')
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write(open('index.html', 'rb').read())
+        self.wfile.write(open('static/index.html', 'rb').read())
+
+    def get_images(self):
+        logger.info(f'GET {self.path}')
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json; charset=utf-8')
+        self.end_headers()
+
+        images = [f for f in listdir('./images') if isfile(join('./images', f))]
+        # self.wfile.write(f'{{"images": {images}}}'.encode('utf-8'))
+        self.wfile.write(json.dumps({'images': images}).encode('utf-8'))
 
     def do_POST(self):
 
         if self.path == '/upload':
-            self.route_post_upload()
+            exec(f'self.{self.routes[self.path]}')
         else:
             logger.warning(f'POST 404 {self.path}')
             self.send_response(405, 'Method Not Allowed')
 
-    def route_post_upload(self):
+    def post_upload(self):
         logger.info(f'POST {self.path}')
         content_length = int(self.headers.get('Content-Length'))
         if content_length > ALLOWED_LENGTH:
@@ -74,7 +88,7 @@ class ImageHostingHandler(BaseHTTPRequestHandler):
 
         logger.info(f'Upload success: {image_id}.{ext}')
         self.send_response(201)
-        # self.send_header('Location', f'https:{SERVER_ADDRESS[0]}:{SERVER_ADDRESS[1]}/images/{image_id}.{ext}')
+        self.send_header('Location', f'https:{SERVER_ADDRESS[0]}:{SERVER_ADDRESS[1]}/images/{image_id}.{ext}')
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
         self.wfile.write(open('upload_success.html', 'rb').read())
