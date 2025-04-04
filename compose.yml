@@ -24,10 +24,10 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
       - images:/images
+      - logs:/var/log/nginx
       - ./app/static:/etc/nginx/html
-      - ./favicon.ico:/images/favicon.ico
+      - ./nginx.conf:/etc/nginx/nginx.conf
     networks:
       - default
     depends_on:
